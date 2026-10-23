@@ -11,7 +11,7 @@ credentials, changes approvals or opens a LAN port.
 Create a 0600 JSON file outside the repository, with absolute paths. Create a
 0700 state directory owned by the same nonroot user; do not share a state directory
 between live adapters or use network filesystems. Use the exact broker checkout
-`e015a6f5d7cc32d0c0a90bd633fab8d94195417a` read-only.
+`ba2219cd87a1feac23e01b23d2c2b3d3bdd65359` read-only.
 
 ```json
 {
@@ -93,6 +93,48 @@ a new session just because its project/name matches.
 
 - [Headless stream JSON](https://antigravity.google/docs/cli/headless/)
 - [CLI reference](https://antigravity.google/docs/cli/reference)
-- [Native MCP](https://antigravity.google/docs/mcp) — not yet wired in this runner.
+- [Native MCP](https://antigravity.google/docs/mcp)
+- [Native hooks](https://antigravity.google/docs/hooks)
 
 These are CLI contracts; app-side internal agent APIs are intentionally not used.
+
+## Optional native outbound MCP wiring
+
+Add `"nativeMcp": true` and an explicit absolute `"workspaceDirectory"` naming
+only the approved project. Default remains **off**. This creates a fresh private
+0700 temporary workspace with `.agents/mcp_config.json` and `.agents/hooks.json`.
+The CLI runs with that new working directory and documented `--add-dir` pointing
+to the approved project. **This changes cwd and may change automatic AGENTS,
+project-context and relative-path behavior**; it is not identical to opening the
+original interactive workspace. Existing project/global configs are never edited. This is a **NEW isolated CLI
+workspace**, not a transparent proxy for the original project. Its project-scoped
+hooks, rules and MCP servers are not guaranteed to be inherited via `--add-dir`.
+The launcher therefore fails closed if the selected project contains `.agents`,
+`AGENTS.md` or `GEMINI.md`; it does not migrate, omit or overwrite those recognized
+policies. Other inherited or vendor-specific context still needs operator review.
+Use a dedicated reviewed project without those policies for this experimental
+mode; do not delete policies to bypass this gate.
+Keep tokens and private adapter state outside the approved project.
+
+The configured stdio process forwards only standard MCP bytes through an owner-
+private Unix socket to the same adapter and SQLite inbox. There is no new wire
+protocol, remote listener, credential-bearing tool argument or second broker
+identity. Only discovery/send/metadata/status are enabled. `broker_receive` is
+blocked to avoid a cooperative peek racing the managed inbound scheduler.
+
+The native PreToolUse hook matches all tools and rejects any conversation ID other
+than the managed root. Consequently **subagent tool calls are denied in this
+experimental mode**, rather than borrowing the root mailbox. A matching root hook
+returns documented `decision:allow`, meaning delegate to normal native policy—not
+`auto_approve`. No permission override or allow-rule is generated. In headless
+mode, an ordinary Ask MCP tool can therefore be soft-denied; the operator must
+make any separate native permission decision themselves. Never enable blanket
+skip-permissions to make messaging work.
+
+Native hook coverage for MCP, init ordering and actual CLI configuration loading
+remain unverified until a pinned vendor build is tested. The process-lifetime
+guard, unbound/changed-conversation denial, one-connection limit and cleanup are
+covered by synthetic fixtures. Socket creation failure fails launch closed;
+there is no TCP or security-policy fallback. Temporary config/socket cleanup is
+graceful on normal close. A hard crash may leave its private temporary directory
+for operator cleanup, but no surviving broker session can be adopted from it.

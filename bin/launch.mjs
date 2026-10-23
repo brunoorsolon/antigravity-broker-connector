@@ -1,13 +1,14 @@
+import { createNativeMcp } from '../src/native-mcp.mjs';
 import { verifyReference } from '../src/reference-pin.mjs';
 import { spawn } from 'node:child_process';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { join, dirname } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { readConfig } from '../src/config.mjs';
 import { streamArguments } from '../src/managed-session.mjs';
 import { createAntigravityAdapter } from '../src/adapter.mjs';
 
-let adapter, inbox, interval, active, stopPromise, closed = false, inputEnded = false, inFlightTools = 0, injectionPaused = false, outputBlocked = false;
+let adapter, inbox, interval, nativeMcp, active, stopPromise, closed = false, inputEnded = false, inFlightTools = 0, injectionPaused = false, outputBlocked = false;
 process.stdin.pause();
 process.stdin.once('end', () => { inputEnded = true; void stop(); });
 process.stdin.once('error', () => { inputEnded = true; void stop(); });
@@ -19,6 +20,7 @@ const stop = () => {
   if (stopPromise) return stopPromise;
   closed = true; process.stdin.pause(); if (interval) clearInterval(interval);
   return stopPromise = Promise.resolve().then(async () => {
+    await nativeMcp?.close();
     await adapter?.close();
     await active?.catch(() => {});
     inbox?.close();
@@ -29,14 +31,17 @@ try {
   const config = readConfig(process.argv[2]);
   verifyReference(config.referenceRoot);
   const load = path => import(pathToFileURL(join(config.referenceRoot, path)).href);
-  const [{ Inbox, newSessionIdentity }, { BrokerClient }, runtime, tools] = await Promise.all([
-    load('reference/inbox.mjs'), load('reference/client.mjs'), load('reference/runtime.mjs'), load('reference/tools.mjs'),
+  const [{ Inbox, newSessionIdentity }, { BrokerClient }, runtime, tools, stdio] = await Promise.all([
+    load('reference/inbox.mjs'), load('reference/client.mjs'), load('reference/runtime.mjs'), load('reference/tools.mjs'), load('reference/mcp-stdio.mjs'),
   ]);
   const identity = newSessionIdentity('antigravity-cli');
   inbox = new Inbox({ directory: join(config.stateRoot, identity.client_id), identity });
   const client = new BrokerClient({ url: config.brokerUrl, tokenFile: config.tokenFile, caFile: config.caFile,
     insecureDevelopment: config.insecureDevelopment === true, inbox });
-  const child = spawn(config.binary, streamArguments({ model: config.model }), { stdio: ['pipe', 'pipe', 'pipe'], shell: false });
+  if (config.nativeMcp === true) nativeMcp = await createNativeMcp({ reference: stdio,
+    adapterRoot: dirname(dirname(fileURLToPath(import.meta.url))), workspaceDirectory: config.workspaceDirectory, getAdapter: () => adapter });
+  const child = spawn(config.binary, [...streamArguments({ model: config.model }), ...(nativeMcp?.args ?? [])],
+    { stdio: ['pipe', 'pipe', 'pipe'], shell: false, ...(nativeMcp ? { cwd: nativeMcp.workspace } : {}) });
   // Default diagnostics are bounded codes, never raw native stderr or credentials.
   let diagnosticSeen = false;
   child.stderr.on('data', () => { if (!diagnosticSeen) { diagnosticSeen = true; diagnostic('native_diagnostic_received'); } });
@@ -48,6 +53,7 @@ try {
   while (adapter.session.state === 'starting' && Date.now() < deadline) await delay(25);
   if (closed || inputEnded || adapter.session.state !== 'idle') throw new Error('native_not_ready');
   await adapter.start({ name: config.name, project: config.project ?? null });
+  nativeMcp?.bind(adapter.session.nativeSessionId);
   emit({ event: 'connected', client_id: identity.client_id, configured_harness_version: config.harnessVersion,
     certified: false, local_mode: config.experimentalManaged === true ? 'managed_serial_experimental' : 'unsupported' });
   interval = setInterval(() => {

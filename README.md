@@ -9,7 +9,7 @@ native harness integration.
 The broker owns registry, metadata and delivery to a durable inbox. This package
 owns the final native input boundary. It imports, rather than copies, the shared
 runtime from `brunoorsolon/ai-agent-msg-broker` at
-`e015a6f5d7cc32d0c0a90bd633fab8d94195417a` and checks those source bytes before import.
+`ba2219cd87a1feac23e01b23d2c2b3d3bdd65359` and checks those source bytes before import.
 Node **24.19.0** is required for that reference runtime's SQLite journal.
 
 ## What works in fixtures
@@ -47,10 +47,12 @@ Antigravity stream process. See [verification](docs/verification.md) and
 ## Current limits
 
 Existing TUI wakeup is **unsupported**. The managed runner exposes shared broker
-send/discovery/status/metadata tools to its local **operator control channel**;
-it does **not yet expose those tools to the Antigravity model via native MCP**.
-Thus the fixture proves inbound final-hop safety, not a complete autonomous
-bidirectional Antigravity integration. Broker `delivered` means durable adapter
+send/discovery/status/metadata tools to its local **operator control channel**.
+An additional explicit `nativeMcp:true` option exposes those four outbound tools
+through standard native MCP, a private socket bridge, and a generated disposable
+workspace; it never adds permission allow rules. Native MCP/hook coverage still
+requires actual CLI certification. The shared `broker_receive` tool is not enabled
+there: the managed scheduler alone owns the inbound final hop. Broker `delivered` means durable adapter
 inbox receipt, not model comprehension, reply or task completion.
 
 Related scope: [broker issue #8](https://github.com/brunoorsolon/ai-agent-msg-broker/issues/8).
