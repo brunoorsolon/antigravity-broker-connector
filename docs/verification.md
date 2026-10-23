@@ -1,7 +1,7 @@
 # Verification and remaining gates
 
-2026-10-23 cloud Linux; Node 24.19.0, SQLite 3.53.3. `npm run check` and
-**20/20 tests passed**. The pinned reference is broker commit
+2026-10-23 Ubuntu 24.04 GitHub Actions; Node 24.19.0, SQLite 3.53.3. `npm run check` and
+**24/24 tests passed**, including the private Unix-socket fixtures. The pinned reference is broker commit
 `ba2219cd87a1feac23e01b23d2c2b3d3bdd65359`.
 
 Tests exercise real HTTP broker registration, metadata, durable delivery and
@@ -34,7 +34,10 @@ The additional outbound MCP patch adds four fixture scenarios (24 total):
 private workspace/config/hook creation and cleanup; real stdio proxy with unbound,
 wrong-session, disabled-receive and second-connection gates; full synthetic
 owned CLI → native hook → MCP → real broker; and rejection of recognized existing
-project policy rather than silent omission. Local source checks and the unaffected
-19 focused tests pass. Cloud sandbox Unix-listen restrictions prevented those new
-socket tests locally; exact-commit GitHub Actions is the required execution gate.
-This limitation is not a claim of a passing socket test or native certification.
+project policy rather than silent omission. Cloud sandbox Unix-listen restrictions
+prevented the socket tests locally; they then ran successfully in the authorized
+isolated GitHub Actions fixture environment. Exact code commit
+`be4a2bf6674996e06072d68d6243687c7532bc56` passed all 24 tests in both
+[push CI](https://github.com/brunoorsolon/antigravity-review-pair/actions/runs/39978357231)
+and [PR CI](https://github.com/brunoorsolon/antigravity-review-pair/actions/runs/39978369161).
+This is real stdio/socket execution with a synthetic CLI, not vendor certification.
