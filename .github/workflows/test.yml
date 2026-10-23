@@ -1,0 +1,27 @@
+name: adapter-fixtures
+on:
+  push:
+    branches: ['feat/**']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  fixture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          path: antigravity-review-pair
+          persist-credentials: false
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: brunoorsolon/ai-agent-msg-broker
+          ref: e015a6f5d7cc32d0c0a90bd633fab8d94195417a
+          path: ai-agent-msg-broker
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.19.0'
+      - run: npm run check && npm test
+        working-directory: antigravity-review-pair
