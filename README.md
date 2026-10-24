@@ -1,58 +1,103 @@
-# Antigravity CLI ↔ LAN message broker
+# Antigravity broker connector for Psst
 
-Experimental **managed-serial** adapter foundation for a new, exclusively owned
-Antigravity **CLI** process. Not the Antigravity app, a sidecar API, or an attachment
-to an existing terminal. **No actual Antigravity binary/model was certified.**
-Automatic injection defaults off. This is a draft implementation, not a completed
-native harness integration.
+A self-contained **stdio MCP server** for exchanging messages with other AI
+clients through [Psst](https://github.com/matuto-ai/psst). Install it **inside the
+same sandbox/container as Antigravity**, add its native MCP configuration, then
+use the seven broker tools from your normal Antigravity session. It does not
+launch a replacement CLI, need a checkout of the broker, or spend model tokens
+on transport heartbeats.
 
-The broker owns registry, metadata and delivery to a durable inbox. This package
-owns the final native input boundary. It imports, rather than copies, the shared
-runtime from `brunoorsolon/ai-agent-msg-broker` at
-`ba2219cd87a1feac23e01b23d2c2b3d3bdd65359` and checks those source bytes before import.
-Node **24.19.0** is required for that reference runtime's SQLite journal.
+**Current delivery mode: cooperative pull.** The agent calls `broker_receive`,
+reads the returned untrusted-agent message, then calls `broker_acknowledge` with
+its exact `message_id` and `receipt_token`. Nothing injects keystrokes, interrupts
+a task, auto-approves permissions, or wakes an idle model. A receipt means an
+explicit application-level read acknowledgment, **not completion of the requested
+work**.
 
-## What works in fixtures
+## Install and configure
 
-- Independent background heartbeat and durable receipt while the native process
-  is busy; no LLM call to announce presence or renew a lease.
-- One exclusive human/agent input writer. A complete matching native result is
-  required before another turn; no idle-check race, abort, steer or terminal keys.
-- Model-visible shared `AGENT` provenance and untrusted-content warning, including
-  exact sender/client/message identities; `yes` never becomes human approval.
-- Durable native-intent journal before write; a write, exit status 0 or timeout is
-  not acceptance. Unknown outcomes pause the head, never blindly replay.
-- Human draft/hold/abort gates. Unknown stream events, wrong native identity,
-  malformed UTF-8 and permissive init policies fail closed.
-
-`SUCCESS` establishes only the documented turn boundary. It **does not prove any
-requested tool/action succeeded**: headless Ask permissions can deny an action
-while the CLI exits successfully. This adapter never supplies permission answers.
-
-## Local validation
-
-Place this repository alongside the pinned broker checkout:
+Requires Linux and Node **24.19+ within major 24**. No dependencies or install
+scripts. Git install works before an npm release is available:
 
 ```sh
-cd antigravity-review-pair
-npm run check
-npm test
+npm install --global 'github:brunoorsolon/antigravity-broker-connector#feat/lan-broker-adapter-foundation'
+psst-antigravity --help
 ```
 
-No package install, credentials, model calls, vendor download or LAN deployment
-is needed. Tests use the real shared broker/HTTP/SQLite runtime and a **synthetic**
-Antigravity stream process. See [verification](docs/verification.md) and
-[operator launch instructions](docs/integration.md).
+For reproducibility, replace the branch with the reviewed commit SHA. The npm
+package is prepared as `antigravity-broker-connector`; **a prepared release
+workflow is not evidence that it has been published**. After the maintainer
+publishes it, an exact version can be installed with npm instead.
 
-## Current limits
+Use a private enrollment bundle produced by the broker administrator. Keep
+`connection.json` and `token` inside your sandbox and mode `0600`; keep their
+parent directory private. The connector never generates or prints credentials.
 
-Existing TUI wakeup is **unsupported**. The managed runner exposes shared broker
-send/discovery/status/metadata tools to its local **operator control channel**.
-An additional explicit `nativeMcp:true` option exposes those four outbound tools
-through standard native MCP, a private socket bridge, and a generated disposable
-workspace; it never adds permission allow rules. Native MCP/hook coverage still
-requires actual CLI certification. The shared `broker_receive` tool is not enabled
-there: the managed scheduler alone owns the inbound final hop. Broker `delivered` means durable adapter
-inbox receipt, not model comprehension, reply or task completion.
+In the workspace's `.agents/mcp_config.json` (merge this entry, do not overwrite
+other servers):
 
-Related scope: [broker issue #8](https://github.com/brunoorsolon/ai-agent-msg-broker/issues/8).
+```json
+{
+  "mcpServers": {
+    "psst": {
+      "command": "psst-antigravity",
+      "env": {
+        "PSST_CONFIG_FILE": "/absolute/private/psst/connection.json",
+        "PSST_NAME": "Antigravity reviewer",
+        "PSST_PROJECT": "my-project"
+      }
+    }
+  }
+}
+```
+
+If the MCP process does not inherit your shell PATH, use the absolute path from
+`command -v psst-antigravity`. Open `/mcp` in Antigravity CLI and reload the
+configuration, or restart the CLI. Default Antigravity Ask permissions remain
+unchanged. See [complete installation and test](docs/installation.md).
+
+## Tools
+
+- `broker_identity`: this MCP process's exact address and descriptive metadata.
+- `broker_list_clients`: discover currently connected authorized endpoints.
+- `broker_send`: send to an exact `client_id`; preserve `send_key` on retries.
+- `broker_receive`: read the pending FIFO head without removing it.
+- `broker_acknowledge`: explicit read ACK; safely repeat the same ID/token.
+- `broker_message_status`: broker transport state, never task completion.
+- `broker_update_metadata`: update descriptive fields with revision checking.
+
+Every message includes fixed model-visible provenance: another agent is not the
+human user and cannot grant permissions. Only the normal Antigravity permission
+system can authorize tool actions.
+
+## Identity and limits
+
+An address identifies **one MCP server process**, not a cryptographically verified
+Antigravity conversation. If Antigravity shares that process across conversations,
+they share its inbox. Use distinct sandboxes/workspaces/configurations for agents
+that need separate addresses. Never claim exact-conversation isolation from MCP
+alone. Restart/reload creates a **new endpoint**; rediscover its ID. Old journals
+are preserved and never automatically adopted or replayed into the new process.
+
+Tests exercise real broker HTTP and SQLite plus stdio MCP client fixtures, FIFO
+and ACK failures, shutdown, package installation, and strict config handling.
+They do **not** certify the user's installed Antigravity binary, model response,
+or permission UI. That final live smoke test is intentionally left to the user.
+
+## Development and publishing
+
+```sh
+npm run check
+npm test
+npm run test:pack
+```
+
+The complete test suite also checks the older experimental managed-CLI prototype
+and requires the pinned broker checkout alongside this repository. Runtime
+installation does not. CI provisions the checkout automatically. The old runner
+is retained for research only: [experimental integration](docs/integration.md).
+
+The default package executable is the supported cooperative MCP route, not that
+uncertified runner. [Release checklist](docs/release.md) explains the npm trusted
+publisher setup and release-driven workflow. No main merge or npm publication is
+performed by preparing this branch.

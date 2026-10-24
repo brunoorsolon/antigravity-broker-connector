@@ -20,3 +20,7 @@ test('exact reviewed reference pin rejects tampered source before import', t => 
   symlinkSync(join(source, 'reference/runtime.mjs'), join(directory, 'reference/runtime.mjs'));
   assert.throws(() => verifyReference(directory), /reference_snapshot_mismatch/);
 });
+
+test('packaged runtime contains the same unmodified reviewed bytes', () => {
+  verifyReference(resolve('vendor/psst'));
+});
