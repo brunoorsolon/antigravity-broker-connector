@@ -42,9 +42,10 @@ export function nativeHookContext(input, { expectedHost, parentPid = process.ppi
  * MCP/model arguments. One conversation is supported; no implicit switching.
  */
 export class NativeBinding {
-  constructor({ path, host, create = false, now = Date.now, failurePoint = () => {}, verifyHost = value => equal(processIdentity(value.pid),value) }) {
+  constructor({ path, host, create = false, now = Date.now, failurePoint = () => {}, verifyHost = value => equal(processIdentity(value.pid),value), ownerEpoch } = {}) {
     this.now = now; this.host = host; this.failurePoint = failurePoint; this.unusable = false;
     this.verifyHost=verifyHost;
+    this.ownerEpoch=ownerEpoch;
     this.abort = new AbortController(); this.signal = this.abort.signal;
     if (!isAbsolute(path) || realpathSync(dirname(path)) !== dirname(path)) fail();
     const parent = lstatSync(dirname(path));
@@ -56,8 +57,8 @@ export class NativeBinding {
     try {
       this.db.exec('PRAGMA busy_timeout=1000;');
       if (create) {
-        this.db.exec('CREATE TABLE binding (id INTEGER PRIMARY KEY CHECK(id=1),host TEXT NOT NULL,conversation TEXT,closed INTEGER NOT NULL); CREATE TABLE permits(token TEXT PRIMARY KEY,tool TEXT NOT NULL,digest TEXT NOT NULL,conversation TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE notices(client TEXT NOT NULL,message TEXT NOT NULL,count INTEGER NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(client,message));');
-        this.db.prepare('INSERT INTO binding VALUES(1,?,NULL,0)').run(canonical(host));
+        this.db.exec('CREATE TABLE binding (id INTEGER PRIMARY KEY CHECK(id=1),host TEXT NOT NULL,conversation TEXT,closed INTEGER NOT NULL,owner_epoch TEXT); CREATE TABLE permits(token TEXT PRIMARY KEY,tool TEXT NOT NULL,digest TEXT NOT NULL,conversation TEXT NOT NULL,expires INTEGER NOT NULL); CREATE TABLE notices(client TEXT NOT NULL,message TEXT NOT NULL,count INTEGER NOT NULL,created INTEGER NOT NULL,PRIMARY KEY(client,message));');
+        this.db.prepare('INSERT INTO binding VALUES(1,?,NULL,0,NULL)').run(canonical(host));
       }
       this.assertHost();
     } catch { this.db.close(); fail(); }
@@ -65,7 +66,8 @@ export class NativeBinding {
   assertHost() {
     if(this.unusable)fail();
     const row=this.db.prepare('SELECT * FROM binding WHERE id=1').get();
-    if (!row || row.host !== canonical(this.host) || row.closed || this.verifyHost(this.host)!==true) fail();
+    if (!row || row.host !== canonical(this.host) || row.closed || this.verifyHost(this.host)!==true
+      || (this.ownerEpoch!==undefined && row.owner_epoch!==this.ownerEpoch)) fail();
     return row;
   }
   transaction(fn) {
@@ -100,6 +102,15 @@ export class NativeBinding {
     });
   }
   isBound(conversationId) { try { return this.assertHost().conversation===conversationId; } catch { return false; } }
+  startOwner(epoch) {
+    validateUuid(epoch);
+    this.transaction(()=>{this.assertHost();this.db.exec('DELETE FROM permits');this.db.prepare('UPDATE binding SET owner_epoch=? WHERE id=1').run(epoch);});
+    this.ownerEpoch=epoch;
+  }
+  endOwner() {
+    try {this.transaction(()=>{this.assertHost();this.db.exec('DELETE FROM permits; UPDATE binding SET owner_epoch=NULL WHERE id=1;');});}
+    finally {this.unusable=true;this.abort.abort();}
+  }
   notice({conversationId,clientId,messageId}) {
     return this.transaction(()=>{
       const binding=this.assertHost();validateUuid(clientId);validateUuid(messageId);

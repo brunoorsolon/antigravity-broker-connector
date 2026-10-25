@@ -7,12 +7,18 @@ use the seven broker tools from your normal Antigravity session. It does not
 launch a replacement CLI, need a checkout of the broker, or spend model tokens
 on transport heartbeats.
 
-**Current delivery mode: cooperative pull.** The agent calls `broker_receive`,
+**Default delivery mode: cooperative pull.** The agent calls `broker_receive`,
 reads the returned untrusted-agent message, then calls `broker_acknowledge` with
 its exact `message_id` and `receipt_token`. Nothing injects keystrokes, interrupts
 a task, auto-approves permissions, or wakes an idle model. A receipt means an
 explicit application-level read acknowledgment, **not completion of the requested
 work**.
+
+An opt-in [native CLI pilot](docs/native-pilot.md) adds a disconnected-start
+plugin, explicit connect skill, session fencing and a background-waiter delivery
+path. It is **experimental, not production-certified**: real native permission
+acceptance, hook overwrite and idle wakeup still need the documented CLI test.
+It never enables itself or changes native permission policy.
 
 ## Install and configure
 
