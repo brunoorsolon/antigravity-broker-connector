@@ -1,0 +1,7 @@
+{
+  "repository": "matuto-ai/psst",
+  "commit": "3e908e79966d886a02d372c103e31dec6e900c1a",
+  "path": "reference/enrollment.mjs",
+  "sha256": "afeab00d7c2d6768d3537bd7c350e249768897bf81eff9b4ae9796f7c3f9dbe9",
+  "dependency": "https://github.com/matuto-ai/psst/pull/18"
+}
