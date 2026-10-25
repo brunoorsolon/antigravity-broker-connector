@@ -28,7 +28,7 @@ For reproducibility, replace the branch with the reviewed commit SHA. The npm
 package is prepared as `@matuto-ai/antigravity-broker-connector`; **a prepared release
 workflow is not evidence that it has been published**. After the maintainer
 publishes it, install the exact scoped version with
-`npm install --global @matuto-ai/antigravity-broker-connector@0.1.0`.
+`npm install --global @matuto-ai/antigravity-broker-connector@0.1.1`.
 The executable remains `psst-antigravity`.
 
 Use a private enrollment bundle produced by the broker administrator. Keep

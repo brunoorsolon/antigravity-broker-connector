@@ -11,10 +11,10 @@ it does not assert that npm already hosts the package.
    `antigravity-broker-connector`, workflow `npm-publish.yml`. This is an account
    security configuration performed by the maintainer, not by this code change.
 4. Set package version and create a GitHub release whose tag is exactly
-   `v<package.json version>` on the reviewed commit (initially `v0.1.0`).
+   `v<package.json version>` on the reviewed commit (next `v0.1.1`).
 5. The workflow runs syntax checks, all tests, and an isolated tarball install;
    only then it runs `npm publish --access public --provenance --ignore-scripts`.
-6. Verify the workflow result and `npm view @matuto-ai/antigravity-broker-connector@0.1.0`
+6. Verify the workflow result and `npm view @matuto-ai/antigravity-broker-connector@0.1.1`
    before advertising the npm install command.
 
 The workflow follows the user's existing release/OIDC pattern, with test and
@@ -24,12 +24,13 @@ back to another identity. Git/packed-tarball installation remains available even
 before npm setup. Release publication, credential creation, and broker enrollment
 are distinct from preparing or merging connector code.
 
-## Scoped package transition
+## Patch release
 
-Publication is paused while the `@matuto-ai` naming changes are reviewed.
-The package version remains `0.1.0`; existing unscoped npm packages and old
-GitHub release tags are not renamed, overwritten, or republished by this change.
-After merge, the maintainer must verify npm organization permissions and configure
-the scoped package trusted publisher. A later release must point at the reviewed
-scoped commit and its tag must exactly match the package version; do not reuse
-an old tag pointing to unscoped code. Version/tag planning is a separate step.
+This PR prepares `0.1.1`; the intended GitHub release tag is `v0.1.1`.
+After review and merge, the maintainer can publish that release from the merged
+commit to exercise npm Trusted Publishing. This code change does not itself
+create a tag, release, or npm publication. Verify the workflow succeeds and the
+scoped npm version exists before recommending it for installation.
+
+Existing `0.1.0` npm packages and old GitHub tags remain untouched. Do not reuse
+or move an old release tag; the new tag must exactly match the package version.
