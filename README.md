@@ -20,7 +20,7 @@ Requires Linux and Node **24.19+ within major 24**. No dependencies or install
 scripts. Git install works before an npm release is available:
 
 ```sh
-npm install --global 'github:brunoorsolon/antigravity-broker-connector#feat/lan-broker-adapter-foundation'
+npm install --global 'github:matuto-ai/antigravity-broker-connector#feat/lan-broker-adapter-foundation'
 psst-antigravity --help
 ```
 

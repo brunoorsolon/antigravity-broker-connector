@@ -7,7 +7,7 @@ it does not assert that npm already hosts the package.
 2. Confirm ownership/availability of npm package `antigravity-broker-connector`.
    For first publication, the maintainer may need npm's initial package creation
    flow. Do not send npm tokens through chat or commit them to GitHub.
-3. Configure npm Trusted Publishing for GitHub owner `brunoorsolon`, repository
+3. Configure npm Trusted Publishing for GitHub owner `matuto-ai`, repository
    `antigravity-broker-connector`, workflow `npm-publish.yml`. This is an account
    security configuration performed by the maintainer, not by this code change.
 4. Set package version and create a GitHub release whose tag is exactly
