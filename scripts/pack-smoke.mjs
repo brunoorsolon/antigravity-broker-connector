@@ -10,7 +10,7 @@ try {
  assert.equal(packed[0].name, '@matuto-ai/antigravity-broker-connector');
  assert.equal(packed[0].filename, `matuto-ai-antigravity-broker-connector-${packed[0].version}.tgz`);
  const entries=packed[0].files.map(x=>x.path);
- for(const path of ['bin/psst-antigravity.mjs','src/connector.mjs','vendor/psst/reference/inbox.mjs','vendor/psst/LICENSE'])assert(entries.includes(path));
+ for(const path of ['bin/psst-antigravity.mjs','src/connector.mjs','src/pairing.mjs','vendor/psst/enrollment.mjs','docs/pairing.md','vendor/psst/reference/inbox.mjs','vendor/psst/LICENSE'])assert(entries.includes(path));
  assert(!entries.some(x=>/node_modules|test\/|\.sqlite|connection\.json|(^|\/)token$|\.github/.test(x)));
  const install=join(temp,'isolated');
  run('npm',['install','--ignore-scripts','--offline','--no-audit','--no-fund','--prefix',install,join(temp,packed[0].filename)]);

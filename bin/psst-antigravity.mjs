@@ -1,8 +1,13 @@
 #!/usr/bin/env node
 import { readConnectorConfig } from '../src/connector-config.mjs';
 import { startConnector } from '../src/connector.mjs';
-const usage = 'Usage: psst-antigravity --config /absolute/private/config.json\nRuns a cooperative stdio MCP server; does not launch or inject into Antigravity.\n';
+import { pairingOptions, pairConnector } from '../src/pairing.mjs';
+const usage = 'Usage: psst-antigravity --config /absolute/private/config.json\n       psst-antigravity pair --pairing-file /absolute/private/pairing.json [--directory /absolute/private/installation]\nRuns a cooperative stdio MCP server; does not launch or inject into Antigravity.\nPair explicitly enrolls this installation; it does not connect or wake a native conversation.\n';
 if (process.argv.length === 3 && ['--help','-h'].includes(process.argv[2])) { process.stdout.write(usage); }
+else if (process.argv[2] === 'pair') {
+  try { process.stdout.write(JSON.stringify(await pairConnector(pairingOptions(process.argv.slice(2)))) + '\n'); }
+  catch { process.stderr.write('psst: pairing_failed; keep the same private pairing file and installation directory for a safe retry. No native session was connected.\n'); process.exitCode = 1; }
+}
 else {
   let connector;
   const controller = new AbortController();

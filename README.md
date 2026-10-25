@@ -16,6 +16,10 @@ work**.
 
 ## Install and configure
 
+For brokers supporting the pairing API, [explicit installation pairing](docs/pairing.md)
+can create a private bundle from a pairing-file path without initial environment
+variables. Pairing alone does not attach a native conversation or enable push.
+
 Requires Linux and Node **24.19+ within major 24**. No dependencies or install
 scripts. After this naming PR merges, Git install from `main` works before an npm release is available:
 

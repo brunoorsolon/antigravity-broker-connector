@@ -20,6 +20,7 @@
     "src/**/*.mjs",
     "vendor/psst/**",
     "docs/installation.md",
+    "docs/pairing.md",
     "docs/release.md"
   ],
   "repository": {
