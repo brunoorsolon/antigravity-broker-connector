@@ -64,8 +64,8 @@ Official references:
 5. Disconnect cancels transport/waiters. Reconnect uses bounded transport backoff;
    lost notices retain pending data. An expired credential requires re-pairing.
 
-`src/native-waiter.mjs` is the tested event-driven waiter primitive. Its binding,
-durable inbox and event subscription are injected by a future gated adapter.
+`src/native-waiter.mjs` is the tested event-driven waiter primitive. The separate
+experimental adapter uses the same durable inbox and explicit receipt boundary.
 It does not change the default MCP-process singleton. A
 successful notice does not advance the FIFO, create a read receipt, or prove
 the requested action succeeded. No terminal input injection, permission override,
@@ -88,6 +88,62 @@ access.** Native permission policy remains authoritative. `allow` only delegates
 to that policy; it must never be replaced by `auto_approve` or permission overrides.
 
 ## Minimum native acceptance test
+
+### Runnable experimental connector
+
+The code now includes a separately gated native entrypoint and plugin generator.
+From a checkout, generate it with:
+
+```sh
+node scripts/prepare-native-plugin.mjs /absolute/new/psst-native --experimental-native
+agy plugin validate /absolute/new/psst-native --strict --json
+```
+
+The packaged generator command is `psst-antigravity-native-plugin` with the same
+arguments. Neither command installs the plugin or edits a live CLI profile.
+The generated plugin uses absolute executable paths from this installation;
+keep that installation available inside the same sandbox. Its native MCP server
+starts disconnected without credentials or initial environment variables.
+
+After explicitly installing the generated directory in an already-onboarded CLI,
+invoke its `psst-connect` skill with a private pairing-file or connection-file
+path. The hook stamps the real conversation; connect creates a fresh broker
+session, recipient discovery uses `broker_list_clients`, and the skill arms the
+returned waiter command under normal native permissions. The waiter exits only
+on durable pending data, cancellation, owner loss or an attention condition;
+background completion is the proposed native wakeup. The model reads and ACKs,
+then re-arms without a human receive command. Errors/denials stop automatic
+retries. Two notices per head are allowed, followed by one attention notice;
+subsequent waits for the same unacknowledged head stay silent. This budget is
+persisted and never consumes the message.
+
+Only the first explicitly connected conversation in a native CLI process is
+supported. A different conversation requires a fresh CLI host. One kernel-held
+MCP-owner lock prevents concurrent owners. MCP EOF invalidates its permits and
+waiter but preserves the verified native host's first-conversation fence. A
+restart under the same host starts disconnected; a new explicit connect creates
+a fresh mailbox, never silently adopts the old one. Owner-incarnation checks
+reject old hooks and permits. Disconnect cancels the waiter and transport, while retaining the
+private installation credential; a new connect creates a fresh session address.
+Re-pairing creates a separate private credential directory. Expiry or terminal
+broker authentication failure stops transport and marks the connection unavailable.
+There is no documented CLI ConversationClosed/SessionEnd hook. `Stop`/`fullyIdle`
+is not treated as session closure because it also describes normal idle work.
+Immediate deregistration when a conversation alone is deleted while its host
+remains alive is therefore not certified; explicit disconnect or closing that
+CLI host is the supported boundary. The live test must inspect task cancellation
+in that case, rather than inferring it from a generic idle observation.
+
+Deterministic adapter tests run the actual HTTP broker transport, durable inbox,
+hook-decision/permit boundary, external waiter, FIFO receive/ACK, and disconnect
+races. Official CLI 1.4.7 strict validation recognizes the generated plugin's
+one MCP server, one hook configuration and one skill with no findings. These
+tests still do not prove native permission acceptance, hook-overwrite delivery,
+or interactive idle wakeup. Those remain the explicit user-owned CLI gate.
+The official CLI also loaded this actual generated plugin in a disposable
+headless fake-provider run: native discovery exposed `psst-native_psst` and
+`broker_connect`, hooks initialized, and the server remained disconnected with
+no client/inbox until EOF. No broker tool was requested in that test.
 
 ### Disposable wakeup-only fixture
 

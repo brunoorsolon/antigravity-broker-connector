@@ -49,7 +49,8 @@ function validArguments(value, schema) {
  * once and is not an agent tool. No credentials are accepted by this interface.
  */
 export function serveStdio({ input = process.stdin, output = process.stdout, tools, onClose = async () => {},
-  onDiagnostic = () => {}, maxFrameBytes = 128 * 1024, maxResponseBytes = 512 * 1024, maxInflight = 8 } = {}) {
+  onDiagnostic = () => {}, maxFrameBytes = 128 * 1024, maxResponseBytes = 512 * 1024, maxInflight = 8,
+  definitions = TOOL_DEFINITIONS, instructions } = {}) {
   if (!tools || !input?.on || !output?.write || !Number.isSafeInteger(maxFrameBytes) || maxFrameBytes < 1024 || maxFrameBytes > 1024 * 1024
     || !Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1024 || maxResponseBytes > 1024 * 1024
     || !Number.isSafeInteger(maxInflight) || maxInflight < 1 || maxInflight > 32) throw new Error('invalid_stdio_configuration');
@@ -93,16 +94,16 @@ export function serveStdio({ input = process.stdin, output = process.stdout, too
       phase = 'initialized';
       send({ jsonrpc: '2.0', id, result: { protocolVersion: MCP_VERSION, capabilities: { tools: {} },
         serverInfo: { name: 'antigravity-broker-connector', version: '0.1.1' },
-        instructions: `${PROVENANCE_WARNING} broker_receive is cooperative pull; after reading call broker_acknowledge with the exact message_id and receipt_token. This records application-level reading, not action success. No permission relay, channels, sampling, or automatic input injection is provided.` } });
+        instructions: instructions ?? `${PROVENANCE_WARNING} broker_receive is cooperative pull; after reading call broker_acknowledge with the exact message_id and receipt_token. This records application-level reading, not action success. No permission relay, channels, sampling, or automatic input injection is provided.` } });
       return;
     }
     if (phase !== 'ready') { error(id, -32000, 'Complete initialize and notifications/initialized first.'); return; }
     if (request.method === 'tools/list') {
       if (request.params !== undefined && (!isObject(request.params) || Object.keys(request.params).length)) { error(id, -32602, 'Tool pagination is not supported.'); return; }
-      send({ jsonrpc: '2.0', id, result: { tools: TOOL_DEFINITIONS.filter(definition => typeof tools[definition.name] === 'function') } }); return;
+      send({ jsonrpc: '2.0', id, result: { tools: definitions.filter(definition => typeof tools[definition.name] === 'function') } }); return;
     }
     if (request.method === 'tools/call') {
-      const p = request.params, definition = TOOL_DEFINITIONS.find(item => item.name === p?.name);
+      const p = request.params, definition = definitions.find(item => item.name === p?.name);
       if (!isObject(p) || Object.keys(p).some(key => !['name', 'arguments', '_meta'].includes(key)) || !definition || typeof tools[definition.name] !== 'function' || !validArguments(p.arguments ?? {}, definition.inputSchema)) {
         error(id, -32602, 'Unknown tool or invalid bounded arguments.'); return;
       }

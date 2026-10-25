@@ -13,14 +13,18 @@
   "license": "MIT",
   "description": "Cooperative stdio MCP connector between Antigravity and the Psst agent message broker.",
   "bin": {
-    "psst-antigravity": "bin/psst-antigravity.mjs"
+    "psst-antigravity": "bin/psst-antigravity.mjs",
+    "psst-antigravity-native-plugin": "scripts/prepare-native-plugin.mjs"
   },
   "files": [
     "bin/psst-antigravity.mjs",
+    "bin/psst-antigravity-native.mjs",
+    "scripts/prepare-native-plugin.mjs",
     "src/**/*.mjs",
     "vendor/psst/**",
     "docs/installation.md",
     "docs/pairing.md",
+    "docs/native-pilot.md",
     "docs/release.md"
   ],
   "repository": {

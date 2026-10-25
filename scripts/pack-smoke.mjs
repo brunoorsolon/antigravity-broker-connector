@@ -11,10 +11,17 @@ try {
  assert.equal(packed[0].filename, `matuto-ai-antigravity-broker-connector-${packed[0].version}.tgz`);
  const entries=packed[0].files.map(x=>x.path);
  for(const path of ['bin/psst-antigravity.mjs','src/connector.mjs','src/pairing.mjs','vendor/psst/enrollment.mjs','docs/pairing.md','vendor/psst/reference/inbox.mjs','vendor/psst/LICENSE'])assert(entries.includes(path));
+ for(const path of ['bin/psst-antigravity-native.mjs','scripts/prepare-native-plugin.mjs','src/native-plugin.mjs','src/native-binding.mjs','src/native-process-waiter.mjs','docs/native-pilot.md'])assert(entries.includes(path));
  assert(!entries.some(x=>/node_modules|test\/|\.sqlite|connection\.json|(^|\/)token$|\.github/.test(x)));
  const install=join(temp,'isolated');
  run('npm',['install','--ignore-scripts','--offline','--no-audit','--no-fund','--prefix',install,join(temp,packed[0].filename)]);
  const executable=join(install,'node_modules','@matuto-ai','antigravity-broker-connector','bin','psst-antigravity.mjs');
  assert.match(run(process.execPath,[executable,'--help'],{cwd:temp}),/cooperative stdio MCP/);
+ const generator=join(install,'node_modules','.bin','psst-antigravity-native-plugin');
+ const generated=JSON.parse(run(generator,[join(temp,'native-plugin'),'--experimental-native'],{cwd:temp}));
+ assert.equal(generated.installed,false);
+ const mcp=JSON.parse(readFileSync(join(generated.pluginDirectory,'mcp_config.json'),'utf8'));
+ assert.equal(mcp.mcpServers.psst.args[2],'--experimental-native');
+ assert(lstatSync(mcp.mcpServers.psst.args[0]).isFile());
  console.log('Packed install and executable smoke passed with no sibling broker checkout.');
 } finally {rmSync(temp,{recursive:true,force:true});}
