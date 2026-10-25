@@ -17,17 +17,19 @@ work**.
 ## Install and configure
 
 Requires Linux and Node **24.19+ within major 24**. No dependencies or install
-scripts. Git install works before an npm release is available:
+scripts. After this naming PR merges, Git install from `main` works before an npm release is available:
 
 ```sh
-npm install --global 'github:brunoorsolon/antigravity-broker-connector#feat/lan-broker-adapter-foundation'
+npm install --global 'github:matuto-ai/antigravity-broker-connector#main'
 psst-antigravity --help
 ```
 
 For reproducibility, replace the branch with the reviewed commit SHA. The npm
-package is prepared as `antigravity-broker-connector`; **a prepared release
+package is prepared as `@matuto-ai/antigravity-broker-connector`; **a prepared release
 workflow is not evidence that it has been published**. After the maintainer
-publishes it, an exact version can be installed with npm instead.
+publishes it, install the exact scoped version with
+`npm install --global @matuto-ai/antigravity-broker-connector@0.1.0`.
+The executable remains `psst-antigravity`.
 
 Use a private enrollment bundle produced by the broker administrator. Keep
 `connection.json` and `token` inside your sandbox and mode `0600`; keep their
