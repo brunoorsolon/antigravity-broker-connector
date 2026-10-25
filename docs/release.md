@@ -11,10 +11,10 @@ it does not assert that npm already hosts the package.
    `antigravity-broker-connector`, workflow `npm-publish.yml`. This is an account
    security configuration performed by the maintainer, not by this code change.
 4. Set package version and create a GitHub release whose tag is exactly
-   `v<package.json version>` on the reviewed commit (next `v0.1.1`).
+   `v<package.json version>` on the reviewed commit (`v0.2.0` for this release).
 5. The workflow runs syntax checks, all tests, and an isolated tarball install;
    only then it runs `npm publish --access public --provenance --ignore-scripts`.
-6. Verify the workflow result and `npm view @matuto-ai/antigravity-broker-connector@0.1.1`
+6. Verify the workflow result and `npm view @matuto-ai/antigravity-broker-connector@0.2.0`
    before advertising the npm install command.
 
 The workflow follows the user's existing release/OIDC pattern, with test and
@@ -24,13 +24,16 @@ back to another identity. Git/packed-tarball installation remains available even
 before npm setup. Release publication, credential creation, and broker enrollment
 are distinct from preparing or merging connector code.
 
-## Patch release
+## Minor release 0.2.0
 
-This PR prepares `0.1.1`; the intended GitHub release tag is `v0.1.1`.
-After review and merge, the maintainer can publish that release from the merged
-commit to exercise npm Trusted Publishing. This code change does not itself
-create a tag, release, or npm publication. Verify the workflow succeeds and the
-scoped npm version exists before recommending it for installation.
+The intended GitHub release tag is `v0.2.0`, matching `package.json`.
+Use the existing release-triggered Trusted Publishing workflow and normal npm
+`latest` tag; no prerelease workflow or account configuration is changed here.
+Review the [changelog](../CHANGELOG.md) before publishing. The native pilot is
+opt-in/default-off, and real idle wakeup, native hook overwrite propagation, and
+conversation-only close cleanup remain acceptance gates—not production claims.
 
-Existing `0.1.0` npm packages and old GitHub tags remain untouched. Do not reuse
-or move an old release tag; the new tag must exactly match the package version.
+Create the new tag only on the reviewed, tested merge commit. Existing versions
+and tags remain untouched. Verify publication, provenance and the scoped npm
+version before recommending installation. A successful merge alone does not
+mean npm publication succeeded.
