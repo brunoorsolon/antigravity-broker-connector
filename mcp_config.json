@@ -1,0 +1,1 @@
+{"mcpServers": {"psst": {"command": "node", "args": ["./bin/psst-antigravity-native.mjs", "serve", "--experimental-native"]}}}

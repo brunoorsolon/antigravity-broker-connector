@@ -1,3 +1,5 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { writeFileSync, readFileSync, openSync, closeSync, fstatSync, fsyncSync, linkSync, unlinkSync, constants } from 'node:fs';
 import { join } from 'node:path';
 import { Inbox, newSessionIdentity } from '../vendor/psst/reference/inbox.mjs';
 import { BrokerClient } from '../vendor/psst/reference/client.mjs';
@@ -9,8 +11,15 @@ import { prepareStateRoot } from './connector-config.mjs';
 /** Experimental native session. Caller owns the native hook permit boundary. */
 export async function startNativeSession({config,conversationId,isAlive,signal,onDiagnostic=()=>{},onUnavailable=()=>{}}) {
   prepareStateRoot(config.stateRoot);
-  const identity=newSessionIdentity('antigravity-cli');
-  const inbox=new Inbox({directory:join(config.stateRoot,identity.client_id),identity});
+  const partition=createHash('sha256').update(JSON.stringify([config.brokerUrl,config.enrollment?.credentialId??config.tokenFile,conversationId])).digest('hex');
+  const directory=join(config.stateRoot,`native-${partition}`);prepareStateRoot(directory);
+  const identityFile=join(directory,'identity.json');
+  const temporary=join(directory,`.identity-${randomUUID()}`),newFd=openSync(temporary,constants.O_CREAT|constants.O_EXCL|constants.O_WRONLY,0o600);
+  try{writeFileSync(newFd,JSON.stringify(newSessionIdentity('antigravity-cli')));fsyncSync(newFd);}finally{closeSync(newFd);}
+  try{linkSync(temporary,identityFile);const d=openSync(directory,constants.O_RDONLY);try{fsyncSync(d);}finally{closeSync(d);}}catch(error){if(error.code!=='EEXIST')throw error;}finally{unlinkSync(temporary);}
+  const fd=openSync(identityFile,constants.O_RDONLY|constants.O_NOFOLLOW);let identity;
+  try{const s=fstatSync(fd);if(!s.isFile()||(s.mode&0o077)||s.size>4096||(process.getuid&&s.uid!==process.getuid()))throw Error('private_identity_required');identity=JSON.parse(readFileSync(fd,'utf8'));}finally{closeSync(fd);}
+  const inbox=new Inbox({directory,identity});
   let client;
   try {client=new BrokerClient({url:config.brokerUrl,tokenFile:config.tokenFile,caFile:config.caFile,insecureDevelopment:config.insecureDevelopment===true,inbox});}
   catch(error){inbox.close();throw error;}
@@ -25,7 +34,7 @@ export async function startNativeSession({config,conversationId,isAlive,signal,o
     if(['unauthenticated','forbidden','session_closed','session_mismatch','invalid_response','retry_window_elapsed'].includes(value.code)){active=false;unavailable();void close().catch(()=>{});}
   };
   const runtime=new AdapterRuntime({client,inbox,verifySession:alive,isAlive:alive,onDiagnostic:diagnostic});
-  const close=()=>stopping??=(async()=>{active=false;clearInterval(monitor);try{await runtime.stop({closeSession:true});}finally{inbox.close();}})();
+  const close=()=>stopping??=(async()=>{active=false;clearInterval(monitor);try{await runtime.stop({closeSession:!isAlive()});}finally{inbox.close();}})();
   const abort=()=>{void close().catch(()=>{});};signal?.addEventListener('abort',abort,{once:true});
   try {
     if(!alive())throw Error('native_host_unavailable');

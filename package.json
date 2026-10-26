@@ -1,6 +1,6 @@
 {
   "name": "@matuto-ai/antigravity-broker-connector",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "engines": {
     "node": ">=24.19.0 <25"
@@ -11,7 +11,7 @@
     "test:pack": "node scripts/pack-smoke.mjs"
   },
   "license": "MIT",
-  "description": "Cooperative stdio MCP connector between Antigravity and the Psst agent message broker.",
+  "description": "Native Antigravity Psst setup and conversation messaging with private administrator-approved installation credentials.",
   "bin": {
     "psst-antigravity": "bin/psst-antigravity.mjs",
     "psst-antigravity-native-plugin": "scripts/prepare-native-plugin.mjs"
@@ -25,7 +25,13 @@
     "docs/installation.md",
     "docs/pairing.md",
     "docs/native-pilot.md",
-    "docs/release.md"
+    "docs/release.md",
+    "plugin.json",
+    "mcp_config.json",
+    "hooks.json",
+    "skills/**",
+    "docs/setup.md",
+    "docs/native-acceptance.md"
   ],
   "repository": {
     "type": "git",

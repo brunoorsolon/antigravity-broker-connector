@@ -13,6 +13,7 @@ try {
  for(const path of ['bin/psst-antigravity.mjs','src/connector.mjs','src/pairing.mjs','vendor/psst/enrollment.mjs','docs/pairing.md','vendor/psst/reference/inbox.mjs','vendor/psst/LICENSE'])assert(entries.includes(path));
  for(const path of ['bin/psst-antigravity-native.mjs','scripts/prepare-native-plugin.mjs','src/native-plugin.mjs','src/native-binding.mjs','src/native-process-waiter.mjs','docs/native-pilot.md'])assert(entries.includes(path));
  assert(!entries.some(x=>/node_modules|test\/|\.sqlite|connection\.json|(^|\/)token$|\.github/.test(x)));
+ for(const path of ['plugin.json','mcp_config.json','hooks.json','skills/psst-setup/SKILL.md','skills/psst/SKILL.md','src/approval-manager.mjs','vendor/psst/approval.mjs','vendor/psst/approval-source.json','docs/setup.md'])assert(entries.includes(path));
  const install=join(temp,'isolated');
  run('npm',['install','--ignore-scripts','--offline','--no-audit','--no-fund','--prefix',install,join(temp,packed[0].filename)]);
  const executable=join(install,'node_modules','@matuto-ai','antigravity-broker-connector','bin','psst-antigravity.mjs');

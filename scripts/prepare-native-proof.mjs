@@ -37,7 +37,7 @@ description: Run one disposable offline native background-completion test, not a
 
 This test has no credentials or network. It does not connect to Psst.
 Use native run_command to run the following exact command with WaitMsBeforeAsync=500,
-toolSummary="Native wake proof", IsDaemon=false, subject to normal permissions:
+toolSummary="Native wake proof", subject to normal permissions:
 
 \`\`\`sh
 ${command('wait')}

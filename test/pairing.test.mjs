@@ -57,5 +57,6 @@ test('pair persists retry identity, reads returned legacy bundle, and never outp
     replace({...receipt,...patch});assert.throws(()=>readConnectorConfig(result.connectionFile,{}),/invalid_connector_configuration/);
   }
   replace(receipt);assert.equal(readConnectorConfig(result.connectionFile,{}).enrollment.credentialId,response.credential_id);
+  const bundle=JSON.parse(readFileSync(result.connectionFile,'utf8'));delete bundle.enrollment_receipt_file;writeFileSync(result.connectionFile,JSON.stringify(bundle),{mode:0o600});assert.throws(()=>readConnectorConfig(result.connectionFile,{}),/invalid_connector_configuration/);bundle.enrollment_receipt_file='enrollment.json';writeFileSync(result.connectionFile,JSON.stringify(bundle),{mode:0o600});
   unlinkSync(receiptFile);assert.throws(()=>readConnectorConfig(result.connectionFile,{}),/invalid_connector_configuration/);
 });

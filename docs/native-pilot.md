@@ -1,3 +1,9 @@
+> Historical0.2.0 pilot evidence and limitations. The0.3.0 source candidate adds
+> packaged URL-only setup, durable installation selection and GET-only pending
+> recovery; see [current setup](setup.md). Historical disconnected-only/fresh-mailbox
+> statements below describe0.2.0, not the new persistence implementation. Actual
+> authenticated native wakeup and conversation-only cleanup remain unverified.
+
 # Native CLI delivery pilot (not enabled)
 
 The default connector remains cooperative MCP. This pilot is **not certified

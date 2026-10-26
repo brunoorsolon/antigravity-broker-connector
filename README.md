@@ -1,3 +1,23 @@
+# Psst for Antigravity
+
+## Native setup (0.3.0 source candidate)
+
+Install the packaged native plugin once through Antigravity's normal `/plugin`
+manager, then invoke `psst-setup` and provide **only the broker HTTPS URL**.
+Approve the displayed request in the broker admin UI. Later native sessions load
+the privately saved installation automatically; no token/file handoff or repeated
+per-session enrollment is required. [Setup and exact persistence paths](docs/setup.md).
+
+Normal native permissions still apply. Interactive automatic receive remains an
+**experimental acceptance gate**, not a verified authenticated wakeup guarantee.
+Existing cooperative MCP installations and legacy private bundles remain supported;
+do not run both integrations simultaneously or erase their unread journals.
+
+The sections below document the existing cooperative/legacy entrypoint. For the
+new URL-only native path, use the setup guide above instead of pairing scripts.
+
+---
+
 # Antigravity broker connector for Psst
 
 A self-contained **stdio MCP server** for exchanging messages with other AI
@@ -14,10 +34,9 @@ a task, auto-approves permissions, or wakes an idle model. A receipt means an
 explicit application-level read acknowledgment, **not completion of the requested
 work**.
 
-An opt-in [native CLI pilot](docs/native-pilot.md) adds a disconnected-start
-plugin, explicit connect skill, session fencing and a background-waiter delivery
-path. It is **experimental, not production-certified**: real native permission
-acceptance, hook overwrite and idle wakeup still need the documented CLI test.
+The [native integration](docs/setup.md) now supports URL-only setup and saved
+installation reconnection; [native acceptance evidence](docs/native-acceptance.md)
+separates tested transport/persistence from the outstanding authenticated wake gate.
 It never enables itself or changes native permission policy.
 
 ## Install and configure
@@ -27,7 +46,7 @@ can create a private bundle from a pairing-file path without initial environment
 variables. Pairing alone does not attach a native conversation or enable push.
 
 Requires Linux and Node **24.19+ within major 24**. No dependencies or install
-scripts. After this naming PR merges, Git install from `main` works before an npm release is available:
+scripts. For reviewed source commits already on `main`, Git installation is available:
 
 ```sh
 npm install --global 'github:matuto-ai/antigravity-broker-connector#main'
@@ -38,7 +57,7 @@ For reproducibility, replace the branch with the reviewed commit SHA. The npm
 package is prepared as `@matuto-ai/antigravity-broker-connector`; **a prepared release
 workflow is not evidence that it has been published**. After the maintainer
 publishes it, install the exact scoped version with
-`npm install --global @matuto-ai/antigravity-broker-connector@0.1.1`.
+`npm install --global @matuto-ai/antigravity-broker-connector@0.3.0`.
 The executable remains `psst-antigravity`.
 
 Use a private enrollment bundle produced by the broker administrator. Keep
