@@ -10,3 +10,9 @@ broker checkout is needed by the packaged MCP connector.
 The connector-specific cooperative read/ACK facade and extended MCP tool list
 live in `src/`, not in this snapshot. Never silently edit vendored source; update
 its reviewed provenance, tests and digest manifest together.
+
+`approval.mjs` is a separate immutable URL/admin-approval helper; its exact commit
+and SHA256 are in `approval-source.json` and checked by `test/approval-pin.test.mjs`.
+It depends on the broker's approval API (PR22), not on v0.1.0; an unreleased source
+pin does not imply that a deployed broker has that capability. Legacy transport
+files and the separate enrollment helper retain their original reviewed pins.

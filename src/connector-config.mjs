@@ -20,6 +20,7 @@ export function readConnectorConfig(path, env = process.env) {
         || typeof config.token_file !== 'string' || !/^[A-Za-z0-9._-]+$/.test(config.token_file)
         || ['.','..'].includes(config.token_file) || typeof config.scope !== 'string') throw new Error();
       if (config.ca_file !== undefined && (typeof config.ca_file !== 'string' || !isAbsolute(config.ca_file))) throw new Error();
+      if (!Object.hasOwn(config,'enrollment_receipt_file')) {try{lstatSync(resolve(dirname(path),'enrollment.json'));throw Error('missing_enrollment_marker');}catch(error){if(error.code!=='ENOENT')throw error;}}
       if (Object.hasOwn(config, 'enrollment_receipt_file')) {
         if (config.enrollment_receipt_file !== 'enrollment.json') throw new Error();
         enrollment = readEnrollmentReceipt({ connectionFile: path, clientType: 'antigravity-cli' });

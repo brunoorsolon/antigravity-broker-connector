@@ -8,7 +8,7 @@ import { canonical, validateUuid } from '../vendor/psst/src/protocol.mjs';
 const fail = () => { throw new Error('native_binding_rejected'); };
 const equal = (a,b) => canonical(a) === canonical(b);
 const digest = args => createHash('sha256').update(canonical(args)).digest('hex');
-const tools = new Set(['broker_connect','broker_disconnect','broker_wait','broker_identity','broker_list_clients','broker_send','broker_receive','broker_acknowledge','broker_message_status','broker_update_metadata']);
+const tools = new Set(['broker_setup','broker_setup_status','broker_cancel_setup','broker_wait_approval','broker_connect','broker_disconnect','broker_wait','broker_identity','broker_list_clients','broker_send','broker_receive','broker_acknowledge','broker_message_status','broker_update_metadata']);
 
 /** Only the native launcher/hook calls this; no model arguments choose a PID. */
 export function processIdentity(pid) {
@@ -76,12 +76,19 @@ export class NativeBinding {
     try { const result=fn();this.failurePoint('before_commit');this.db.exec('COMMIT');this.failurePoint('after_commit');return result; }
     catch { try {this.failurePoint('before_rollback');this.db.exec('ROLLBACK');}catch{this.unusable=true;this.abort.abort();} fail(); }
   }
+  observe(context) {
+    return this.transaction(()=>{const row=this.assertHost();validateUuid(context?.conversationId);
+      if(!equal(context.host,this.host)||(row.conversation&&row.conversation!==context.conversationId))fail();
+      if(!row.conversation)this.db.prepare('UPDATE binding SET conversation=? WHERE id=1').run(context.conversationId);
+      return context.conversationId;
+    });
+  }
   issue({ context, tool, args }) {
     return this.transaction(()=>{
       const row=this.assertHost();validateUuid(context?.conversationId);
       if (!equal(context.host,this.host) || !tools.has(tool) || !args || typeof args!=='object' || Array.isArray(args) || Object.hasOwn(args,'__psst_permit')) fail();
       if (!row.conversation) {
-        if (tool!=='broker_connect') fail();
+        if (!['broker_connect','broker_setup','broker_setup_status'].includes(tool)) fail();
         this.db.prepare('UPDATE binding SET conversation=? WHERE id=1').run(context.conversationId);
       } else if(row.conversation!==context.conversationId) fail();
       this.db.prepare('DELETE FROM permits WHERE expires<=?').run(this.now());

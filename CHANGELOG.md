@@ -1,3 +1,11 @@
+#0.3.0 (unreleased source candidate)
+
+- URL-only native setup with broker-admin approval and durable same-request retry.
+- GET-only pending restart recovery; approved configuration loads on normal startup.
+- Credential/conversation-separated persistent inboxes with exclusive native ownership.
+- Packaged native plugin and documented bootstrap-sharing paths; legacy MCP preserved.
+- Native automatic wakeup remains experimental; no permission bypass or production claim.
+
 # Changelog
 
 ## 0.2.0

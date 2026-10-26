@@ -1,0 +1,53 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {mkdtempSync,rmSync} from 'node:fs';import {tmpdir} from 'node:os';import {join} from 'node:path';
+import {randomUUID} from 'node:crypto';import {openInstallation} from '../src/installation.mjs';import {createApprovalManager} from '../src/approval-manager.mjs';
+function fixture(t){const root=mkdtempSync(join(tmpdir(),'agy-approval-'));t.after(()=>rmSync(root,{recursive:true,force:true}));const configs=new Map();const installation=openInstallation(root,path=>{if(!configs.has(path))throw Error('invalid_config');return configs.get(path);});return{root,configs,installation};}
+function approved(f,requestId=randomUUID()){const connectionFile=join(f.root,requestId+'.json'),credentialId='enrolled-'+randomUUID();f.configs.set(connectionFile,{brokerUrl:'https://broker.example',enrollment:{credentialId}});return{state:'approved',requestId,connectionFile,credentialId};}
+test('startup absent state never enrolls; URL setup persists intent before POST and selects only after attachment',async t=>{
+ const f=fixture(t);let calls=0,prepared=0,committed=0;const result=approved(f);const api={readApprovalState:()=>null,beginApproval:async()=>{calls++;assert.equal(f.installation.pending().requestId,null);return result;},pollApproval:async()=>result};
+ const m=createApprovalManager({installation:f.installation,api,activate:{prepare:async()=>{prepared++;assert.equal(f.installation.selected(),null);return{close:async()=>{}};},commit:async()=>{committed++;}}});
+ await m.resume();assert.equal(calls,0);await m.begin('https://broker.example');await m.done;assert.equal(calls,1);assert.equal(prepared,1);assert.equal(committed,1);assert.equal(f.installation.selected().credentialId,result.credentialId);
+});
+test('restart pending approval uses GET only and keeps same request; cancellation fences late approval',async t=>{
+ const f=fixture(t),r=approved(f);f.installation.beginPending({brokerUrl:'https://broker.example',requestId:r.requestId,previousRevision:null});let release,posts=0,attached=0;const wait=new Promise(resolve=>release=resolve);
+ const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>({state:'pending',requestId:r.requestId}),beginApproval:()=>{posts++;},pollApproval:()=>wait},activate:{prepare:async()=>{attached++;return{close:async()=>{}};},commit:async()=>{}}});
+ await m.resume();m.cancel();release(r);await m.done;assert.equal(posts,0);assert.equal(attached,0);assert.equal(f.installation.selected(),null);
+ assert.equal(f.installation.pending().cancelled,false); // Local cancellation must not cancel another native host's setup.
+});
+test('approved selection survives failed replacement; CAS prevents stale replacement selection',async t=>{
+ const f=fixture(t),first=approved(f);f.installation.beginPending({brokerUrl:'https://broker.example',requestId:first.requestId,previousRevision:null});const old=f.installation.commit({...first,previousRevision:null});const next=approved(f);let closed=0;
+ const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>first,beginApproval:async options=>{assert.equal(options.replaceRequestId,first.requestId);return next;},pollApproval:async()=>next},activate:{prepare:async()=>{throw Error('attach_failed');},commit:async()=>{}}});
+ await m.begin('https://broker.example');await m.done;assert.equal(f.installation.selected().revision,old.revision);assert.equal(m.status.state,'attention_required');
+ assert.throws(()=>f.installation.commit({...next,previousRevision:'stale'}),/selection_conflict/);m.close();assert.equal(closed,0);
+});
+test('unknown begin result recovers saved candidate after restart without POST',async t=>{
+ const f=fixture(t),r=approved(f);let posts=0;
+ const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>null,beginApproval:async()=>{posts++;throw Object.assign(Error('network'),{effect:'unknown'});}},activate:{}});
+ await assert.rejects(m.begin('https://broker.example'));assert.equal(f.installation.pending().requestId,null);
+ const n=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>({state:'pending',requestId:r.requestId}),pollApproval:async()=>r},activate:{prepare:async()=>({close:async()=>{}}),commit:async()=>{}}});await n.resume();await n.done;assert.equal(posts,1);assert.equal(f.installation.selected().credentialId,r.credentialId);
+});
+test('URL credentials rejected, denied state terminal, no automatic replacement',async t=>{
+ const f=fixture(t);let polls=0;const r={state:'denied',requestId:randomUUID()};const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>null,beginApproval:async()=>r,pollApproval:()=>{polls++;}},activate:{}});
+ await assert.rejects(m.begin('https://secret:password@broker.example'),/https_broker_url_required/);await m.begin('https://broker.example');await m.done;assert.equal(m.status.state,'denied');assert.equal(polls,0);assert.equal(f.installation.pending().cancelled,true);
+});
+test('thirty pending native hosts share one approved CAS winner; disconnect of one does not cancel peers',async t=>{
+ const f=fixture(t),r=approved(f);f.installation.beginPending({brokerUrl:'https://broker.example',requestId:r.requestId,previousRevision:null});let release,attached=0,posts=0;const response=new Promise(resolve=>release=resolve);
+ const managers=Array.from({length:30},()=>createApprovalManager({installation:openInstallation(f.root,path=>f.configs.get(path)),api:{readApprovalState:()=>({state:'pending',requestId:r.requestId}),beginApproval:()=>{posts++;},pollApproval:()=>response},activate:{prepare:async()=>({close:async()=>{}}),commit:async()=>{attached++;}}}));
+ await Promise.all(managers.map(m=>m.resume()));managers[0].cancel();release(r);await Promise.all(managers.map(m=>m.done));assert.equal(posts,0);assert.equal(attached,29);assert.equal(managers[0].status.state,'cancelled');assert(managers.slice(1).every(m=>m.status.state==='approved'));assert.equal(f.installation.selected().credentialId,r.credentialId);
+});
+test('retryable server cooldown is honored without startup POST or key rotation',async t=>{
+ const f=fixture(t),r=approved(f);f.installation.beginPending({brokerUrl:'https://broker.example',requestId:r.requestId,previousRevision:null});let waits=[],polls=0,m;
+ m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>({state:'pending',requestId:r.requestId}),pollApproval:async()=>{polls++;throw Object.assign(Error('rate_limited'),{retryable:true,retryAfterMs:60000});}},activate:{},sleep:async ms=>{waits.push(ms);m.cancel();}});await m.resume();await m.done;assert.deepEqual(waits,[60000]);assert.equal(polls,1);assert.equal(f.installation.pending().requestId,r.requestId);
+});
+test('local activation write failure never changes approved installation selection',async t=>{
+ const f=fixture(t),r=approved(f);let closed=0;const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>null,beginApproval:async()=>r},activate:{prepare:async()=>({close:async()=>closed++}),commit:async()=>{throw Error('injected_state_write_failure');}}});await m.begin('https://broker.example');await m.done;assert.equal(f.installation.selected(),null);assert.equal(closed,1);assert.equal(m.status.state,'attention_required');
+});
+test('cancel during staged activation rolls back without late selected/approved result',async t=>{
+ const f=fixture(t),r=approved(f);let release,entered,rolled=0,closed=0;const started=new Promise(r=>entered=r),barrier=new Promise(r=>release=r);const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>null,beginApproval:async()=>r},activate:{prepare:async()=>({close:async()=>closed++}),commit:async()=>{entered();await barrier;return{rollback:async()=>rolled++};}}});await m.begin('https://broker.example');await started;m.cancel();release();await m.done;assert.equal(f.installation.selected(),null);assert.equal(rolled,1);assert.equal(closed,1);assert.equal(m.status.state,'cancelled');
+});
+test('old cleanup failure after selected candidate cannot close new or overwrite concurrent cancellation',async t=>{
+ const f=fixture(t),r=approved(f);let entered,release,closed=0;const started=new Promise(r=>entered=r),barrier=new Promise(r=>release=r);const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>null,beginApproval:async()=>r},activate:{prepare:async()=>({close:async()=>closed++}),commit:async()=>({finalize:async()=>{entered();await barrier;throw Error('old_cleanup_failed');}})}});await m.begin('https://broker.example');await started;assert.equal(f.installation.selected().credentialId,r.credentialId);m.cancel();release();await m.done;assert.equal(closed,0);assert.equal(m.status.state,'cancelled');assert.equal(f.installation.selected().credentialId,r.credentialId);
+});
+test('known expired pending request stops locally without GET, POST or implicit replacement',async t=>{
+ const f=fixture(t),requestId=randomUUID();f.installation.beginPending({brokerUrl:'https://broker.example',requestId,previousRevision:null});const m=createApprovalManager({installation:f.installation,api:{readApprovalState:()=>({state:'pending',requestId,requestExpiresAt:'2000-01-01T00:00:00Z'}),pollApproval:()=>{throw Error('expired should not poll');}},activate:{}});await m.resume();await m.done;assert.equal(m.status.state,'expired');
+});
